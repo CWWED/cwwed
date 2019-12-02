@@ -81,6 +81,10 @@ def create_psa(args):
     # upload the psa
     upload_psa(file=args['file'], path=data.get('path'))
 
+    # TODO - should we create the PSA first to know the proper storage path? (i.e cwwed-archives/NSEM/Sandy/123/Working Directory/)
+    # upload working directory
+    upload_working_directory(file=args['working-directory-archive'], nsem_data={})
+
     # request a new post-storm assessment from the api
     response = requests.post(url, json=data, headers=get_auth_headers(args['api-token']))
     nsem_data = response.json()
@@ -106,6 +110,25 @@ def upload_psa(file: str, path: str):
     print('uploading {} to s3://{}/{}'.format(file, S3_BUCKET, path))
     s3_bucket.upload_file(file, path)
     print('Successfully uploaded psa')
+
+
+def upload_working_directory(file: str, path: str):
+
+    # verify the "file" is of the correct type
+    _, extension = os.path.splitext(file)
+    if extension != '.tgz':
+        sys.exit('File to upload must be ".tgz" (tar+gzipped)')
+
+    # TODO - handle backend models for storing path and api validation
+
+    # create the s3 instance
+    s3 = boto3.resource('s3')
+    s3_bucket = s3.Bucket(S3_BUCKET)
+
+    # upload the file to the specified path
+    print('uploading {} to s3://{}/{}'.format(file, S3_BUCKET, path))
+    s3_bucket.upload_file(file, path)
+    print('Successfully uploaded working directory')
 
 
 def fetch_psa(psa_id):
@@ -301,9 +324,10 @@ subparsers_psa = parser_psa.add_subparsers(help='PSA sub-commands', dest='psa')
 
 # psa - create
 parser_psa_create = subparsers_psa.add_parser('create', help='Create a new PSA version')
-parser_psa_create.add_argument("body", help='The body json file describing the post storm assessment')
-parser_psa_create.add_argument("file", help='The ".tgz" (tar+gzipped) post-storm assessment file to upload')
+parser_psa_create.add_argument("psa-body", help='The body json file describing the post storm assessment')
+parser_psa_create.add_argument("psa-archive-file", help='The ".tgz" (tar+gzipped) post-storm assessment file to upload')
 parser_psa_create.add_argument("api-token", help='API token')
+parser_psa_create.add_argument("--working-directory-archive", help='Working Directory Data')
 parser_psa_create.set_defaults(func=create_psa)
 
 # psa - list
